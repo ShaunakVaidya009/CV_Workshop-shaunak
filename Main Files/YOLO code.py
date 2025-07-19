@@ -2,28 +2,28 @@ import cv2
 import numpy as np
 
 # Load YOLOv3 model
-net = cv2.dnn.readNet("C:/Users/ankit/OneDrive/Documents/Personal/Repls/Resource files/yolov3.weights", "C:/Users/ankit/OneDrive/Documents/Personal/Repls/Resource files/yolov3.cfg")
+net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 
 # Load class labels
-with open("C:/Users/ankit/OneDrive/Documents/Personal/Repls/Resource files/coco.names", "r") as f:
+with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Load image
-image = cv2.imread("C:/Users/ankit/OneDrive/Documents/Personal/Documents/Personal/My Photo.jpg")
+image = cv2.imread("sample.jpg")
 height, width = image.shape[:2]
 
-# Create input blob
-blob = cv2.dnn.blobFromImage(image, scalefactor=1/255.0, size=(416, 416), swapRB=True, crop=False)
+# Create input blob from the image
+blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
 net.setInput(blob)
 
 # Get output layer names
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
 
-# Perform forward pass
+# Run forward pass through YOLO
 outputs = net.forward(output_layers)
 
-# Post-processing
+# Process outputs
 boxes = []
 confidences = []
 class_ids = []
@@ -34,7 +34,7 @@ for output in outputs:
         class_id = np.argmax(scores)
         confidence = scores[class_id]
 
-        if confidence > 0.5:
+        if confidence > 0.3:
             center_x = int(detection[0] * width)
             center_y = int(detection[1] * height)
             w = int(detection[2] * width)
@@ -46,16 +46,19 @@ for output in outputs:
             confidences.append(float(confidence))
             class_ids.append(class_id)
 
-# Non-max suppression to remove overlapping boxes
-indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.4)
+# Apply Non-Maximum Suppression
+indices = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
 
-for i in indices.flatten():
+# Draw boxes and labels
+for i in indices:
+    i = i[0] if isinstance(i, (list, tuple, np.ndarray)) else i
     x, y, w, h = boxes[i]
     label = f"{classes[class_ids[i]]}: {int(confidences[i] * 100)}%"
     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
     cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-# Display result
+
+# Show output image
 cv2.imshow("YOLO Object Detection", image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()

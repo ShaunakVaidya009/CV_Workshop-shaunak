@@ -1,4 +1,5 @@
 import cv2
+import random
 
 # Load and convert image
 image = cv2.imread('sample.jpg')
@@ -10,7 +11,11 @@ contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) #
 
 # Draw contours on original image
 output = image.copy()
-cv2.drawContours(output, contours, -1, (0, 255, 255), 2)
+#cv2.drawContours(output, contours, -1, (0, 255, 255), 2)
+
+for cnt in contours:
+    color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    cv2.drawContours(output, [cnt], -1, color, 2)
 
 # Show results
 cv2.imshow('Original', gray)

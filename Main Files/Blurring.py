@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Load the image
-image = cv2.imread("C:/Users/ankit/OneDrive/Documents/Personal/Documents/Personal/My Photo.jpg")  # Replace with your image path
+image = cv2.imread("sample.jpg")  # Replace with your image path
 if image is None:
     print("Image not found. Please check the path.")
     exit()

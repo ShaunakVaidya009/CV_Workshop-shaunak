@@ -1,0 +1,87 @@
+import cv2
+import numpy as np
+import sys
+
+# --- Video Capture Setup ---
+# 0 for default webcam, or provide video file path like "my_video.mp4"
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("Error: Could not open video stream or file.")
+    sys.exit()
+
+# --- Capture and Process Loop ---
+while True:
+    ret, frame = cap.read() # Read a frame from the video feed
+
+    if not ret:
+        print("Error: Could not read frame. Exiting.")
+        break
+
+    # --- Resize the captured frame for consistent processing ---
+    # Resize to the same dimensions you've been working with
+    resized_frame = cv2.resize(frame, (600, 416))
+
+    # --- Preprocessing Steps on the current frame ---
+    gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
+    gausian = cv2.GaussianBlur(gray, (7, 7), 0)
+    edges = cv2.Canny(gausian, 100, 255)
+
+    # --- Contour Detection ---
+    contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Optionally draw all contours on a copy of the resized frame for real-time visualization
+    display_frame_with_contours = resized_frame.copy()
+    cv2.drawContours(display_frame_with_contours, contours, -1, (0, 255, 255), 2)
+    cv2.imshow("Live Feed (Contours)", display_frame_with_contours)
+
+    final_scanned_image = None # Initialize for each frame
+
+    if len(contours) > 0:
+        # --- Sort contours by area to find the largest ---
+        bigcon = sorted(contours, key=cv2.contourArea, reverse=True)
+
+        # Ensure the largest contour is not too small to avoid processing noise
+        if cv2.contourArea(bigcon[0]) > 1000: # Adjust this threshold based on your needs
+            perimeter = cv2.arcLength(bigcon[0], True)
+            approx = cv2.approxPolyDP(bigcon[0], 0.02 * perimeter, True)
+
+            # --- Check if the approximated contour has 8 vertices (an octagonal shape) ---
+            # Your code checked for 8 vertices, so keeping that logic.
+            if len(approx) == 8: # <-- This is your specific condition
+                x, y, w, h = cv2.boundingRect(approx)
+
+                # --- Crop the original resized frame ---
+                final_scanned_image = resized_frame[y:y+h, x:x+w]
+
+                # Apply Canny to the cropped image, as per your last line
+                sneha = cv2.Canny(final_scanned_image, 100, 255)
+
+                # --- Display the processed (Canny'd) cropped image ---
+                # Resize for consistent display if needed
+                if sneha.shape[0] > 0 and sneha.shape[1] > 0: # Check if cropped image is valid
+                    display_scanned_resized = cv2.resize(sneha, (416, 416))
+                    cv2.imshow('Scanned Document (Cropped & Canny)', display_scanned_resized)
+                print(f"Detected and processed an 8-sided shape. Sides: {len(approx)}")
+            else:
+                # print(f"Largest contour is not an 8-sided shape. It has {len(approx)} sides.")
+                pass # Suppress frequent prints if no 8-sided shape
+
+        # else:
+            # print("Largest contour found is too small to be considered a document.")
+    # else:
+        # print("No contours were found in the image.")
+
+
+    # --- Key Press Logic to Stop or Capture ---
+    key = cv2.waitKey(1) & 0xFF # Wait for 1ms for a key press
+    if key == ord('q'): # Press 'q' to quit the application
+        print("Quitting application.")
+        break
+    elif key == ord('s'): # Press 's' to save the currently processed scanned image
+        if final_scanned_image is not None:
+            save_path = "captured_scanned_image.jpg"
+            cv2.imwrite(save_path, final_scanned_image)
+            print(f"Captured and saved '{save_path}'")
+        else:
+            print("No valid scanned image to save.")
