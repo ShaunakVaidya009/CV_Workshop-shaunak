@@ -1,0 +1,67 @@
+import cv2
+import numpy as np
+import sys
+
+# Load the image
+image = cv2.imread("C:/Users/anish/OneDrive/Desktop/open cv/Test2.jpg")
+
+# --- Error handling for image loading ---
+if image is None:
+    print("Error: Image not found at the specified path. Please check the path and file name.")
+    sys.exit()
+    
+image = cv2.resize(image,(600,416))
+
+# --- Preprocessing Steps ---
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+gausian = cv2.GaussianBlur(gray, (7, 7), 0)
+edges = cv2.Canny(gausian, 100, 255)
+
+# --- Contour Detection ---
+contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+image = cv2.drawContours(image, contours, -1, (0, 255, 255), 2)
+final_scanned_frame = None
+if len(contours) > 0:
+    # --- Sort contours by area to find the largest ---
+    # bigcon now holds the contours sorted from largest to smallest
+    bigcon = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    # --- Process the largest contour ---
+    # The minimum contour area check has been removed as requested.
+    perimeter = cv2.arcLength(bigcon[0], True)
+
+    # --- Approximate the contour to a polygon ---
+    # 0.02*perimeter means 2% of the perimeter for approximation accuracy
+    approx = cv2.approxPolyDP(bigcon[0], 0.02 * perimeter, True)
+  
+    # --- Check if the approximated contour has 4 vertices (a quadrilateral) ---
+    if len(approx) == 8:
+        # Get the bounding box (x, y, width, height) of the 4-sided contour
+        x, y, w, h = cv2.boundingRect(approx)
+
+        # --- Crop the original image using the bounding box ---
+        # Slicing syntax: image[startY:endY, startX:endX]
+        final_scanned_frame = image[y:y+h, x:x+w]
+        sneha = cv2.Canny(final_scanned_frame, 100, 255)
+        
+        print(f"Successfully found and cropped a 4-sided document.")
+    else:
+        print(f"Largest contour is not a perfect quadrilateral. It has {len(approx)} sides.")
+else:
+    print("No contours were found in the image.")
+
+# --- Display Results ---
+if final_scanned_frame is not None:
+    # Optional: Resize the final cropped image for consistent display
+    # (416, 416) is a common size, adjust as needed
+    display_frame_resized = cv2.resize(final_scanned_frame, (416, 416))
+    
+    cv2.imshow('Scanned Document (Cropped)', sneha)
+else:
+    # If no 4-sided document was found, show the original image
+    # This might be useful for debugging or if no specific document is expected.
+    cv2.imshow('Original Image (No Document Found)', image)
+
+# --- Wait for user input and close windows ---
+cv2.waitKey(0) # Waits indefinitely until a key is pressed to close all windows
+cv2.destroyAllWindows() # Closes all OpenCV windows
